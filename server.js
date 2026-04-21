@@ -4,31 +4,34 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 const youtubedl = require('youtube-dl-exec');
 
-// Force yt-dlp binary (important for Docker)
-const exec = youtubedl.create('/usr/local/bin/yt-dlp');
+// Use yt-dlp automatically (no hard path issues)
+const exec = youtubedl;
 
 const app = express();
 
-// 🔐 Basic rate limiting (protect server)
+// Debug (important for crashes)
+process.on('uncaughtException', err => console.error('UNCAUGHT:', err));
+process.on('unhandledRejection', err => console.error('REJECTION:', err));
+
+// Security: rate limit
 const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 20 // limit each IP
+  windowMs: 60 * 1000,
+  max: 20
 });
 
 app.use(cors());
 app.use(limiter);
-app.use(express.json());
 
 // Serve frontend
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 🎬 Main API
+// API
 app.get('/api/info', async (req, res) => {
   const videoUrl = req.query.url;
 
-  // ❌ Validate URL
+  // Validation
   if (!videoUrl || !videoUrl.startsWith('http')) {
     return res.status(400).json({ error: 'Invalid URL' });
   }
@@ -40,19 +43,12 @@ app.get('/api/info', async (req, res) => {
   try {
     const output = await exec(videoUrl, {
       dumpSingleJson: true,
-      noCheckCertificates: true,
       noWarnings: true,
       preferFreeFormats: true,
       format: "bestvideo+bestaudio/best",
-      timeout: 15000,
-      impersonate: 'chrome',
-      addHeader: [
-        'referer:https://www.youtube.com/',
-        'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36'
-      ]
+      timeout: 15000
     });
 
-    // 🎯 Filter MP4 formats (video only)
     const formats = (output.formats || [])
       .filter(f =>
         f.ext === 'mp4' &&
@@ -61,36 +57,31 @@ app.get('/api/info', async (req, res) => {
         f.url
       )
       .map(f => ({
-        quality: f.format_note || f.height + "p",
+        quality: f.format_note || (f.height ? f.height + "p" : "unknown"),
         url: f.url,
-        filesize: f.filesize || f.filesize_approx || null
+        size: f.filesize || f.filesize_approx || null
       }))
-      .slice(0, 6); // limit results
+      .slice(0, 6);
 
     if (!formats.length) {
-      return res.status(404).json({
-        error: "No downloadable formats found. Try another video."
-      });
+      return res.status(404).json({ error: "No formats found" });
     }
 
     res.json({
       title: output.title,
       thumbnail: output.thumbnail,
       duration: output.duration,
-      formats: formats
+      formats
     });
 
-  } catch (error) {
-    console.error("❌ Extraction Error:", error.message);
-
+  } catch (err) {
+    console.error("ERROR:", err.message);
     res.status(500).json({
-      error: "Failed to fetch video. YouTube may be blocking the request. Try again later."
+      error: "Failed to fetch video. Try again later."
     });
   }
 });
 
-// 🚀 Start server
+// Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
