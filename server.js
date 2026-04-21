@@ -1,32 +1,3 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const rateLimit = require('express-rate-limit');
-const { exec } = require('child_process');
-const util = require('util');
-const execPromise = util.promisify(exec);
-
-const app = express();
-
-// Debug (important for crashes)
-process.on('uncaughtException', err => console.error('UNCAUGHT:', err));
-process.on('unhandledRejection', err => console.error('REJECTION:', err));
-
-// Security: rate limit
-const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20
-});
-
-app.use(cors());
-app.use(limiter);
-app.use(express.static(__dirname));
-
-// Serve frontend
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 // API: Get video info
 app.get('/api/info', async (req, res) => {
   const videoUrl = req.query.url;
@@ -41,11 +12,19 @@ app.get('/api/info', async (req, res) => {
   }
 
   try {
-    // Use yt-dlp binary directly for reliable JSON parsing
-    const command = `yt-dlp -j --no-warnings --prefer-free-formats -f "bestvideo+bestaudio/best" "${videoUrl}"`;
+    // Enhanced command with anti-detection measures
+    const command = `yt-dlp -j \
+      --no-warnings \
+      --prefer-free-formats \
+      --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+      --extractor-retries 3 \
+      --retries 3 \
+      -f "bestvideo+bestaudio/best" \
+      "${videoUrl}"`;
+    
     const { stdout } = await execPromise(command, { 
       timeout: 30000,
-      maxBuffer: 1024 * 1024 * 5 // 5MB buffer for large JSON
+      maxBuffer: 1024 * 1024 * 5
     });
     
     const output = JSON.parse(stdout);
@@ -79,40 +58,16 @@ app.get('/api/info', async (req, res) => {
 
   } catch (err) {
     console.error("ERROR:", err.message);
+    
+    // More specific error message
+    if (err.message.includes('HTTP Error 403')) {
+      return res.status(500).json({ 
+        error: "YouTube blocked the request. This is a known issue with cloud hosting." 
+      });
+    }
+    
     res.status(500).json({
       error: "Failed to fetch video. The link may be invalid or YouTube blocked the request."
     });
   }
 });
-
-// API: Download endpoint (proxies the actual download)
-app.get('/api/download', async (req, res) => {
-  const videoUrl = req.query.url;
-  const formatId = req.query.format;
-
-  if (!videoUrl || !formatId) {
-    return res.status(400).json({ error: 'Missing parameters' });
-  }
-
-  try {
-    // Get the direct download URL
-    const command = `yt-dlp -f ${formatId} -g "${videoUrl}"`;
-    const { stdout } = await execPromise(command, { timeout: 15000 });
-    const downloadUrl = stdout.trim().split('\n')[0];
-
-    if (!downloadUrl) {
-      throw new Error('Could not retrieve download URL');
-    }
-
-    // Redirect to the actual download URL
-    res.redirect(downloadUrl);
-
-  } catch (err) {
-    console.error("Download error:", err.message);
-    res.status(500).json({ error: "Download failed. Please try again." });
-  }
-});
-
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
