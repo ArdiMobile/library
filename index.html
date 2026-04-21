@@ -3,61 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Downloader Test</title>
+    <title>ArdiMobile Downloader</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
-
-    <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md">
-        <h1 class="text-2xl font-bold mb-6 text-center text-blue-400">Video Downloader</h1>
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center">
+    <div class="w-full max-w-lg p-6 bg-slate-800 rounded-2xl shadow-xl">
+        <h1 class="text-3xl font-bold text-center mb-8 text-blue-400">ArdiMobile</h1>
         
-        <div class="space-y-4">
-            <input type="text" id="videoUrl" placeholder="Paste YouTube URL here..." 
-                class="w-full p-3 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500 text-white">
-            
-            <button onclick="fetchVideo()" id="btn"
-                class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded font-bold transition">
+        <div class="flex flex-col gap-4">
+            <input type="text" id="urlInput" placeholder="Paste YouTube link here..." 
+                class="p-3 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button onclick="getLink()" id="mainBtn" class="bg-blue-600 py-3 rounded-lg font-bold hover:bg-blue-500 transition">
                 Get Download Link
             </button>
         </div>
 
-        <div id="result" class="mt-8 hidden border-t border-gray-700 pt-6 text-center">
-            <p id="videoTitle" class="font-medium mb-4 text-gray-300"></p>
-            <a id="downloadBtn" href="#" target="_blank" 
-                class="bg-green-600 hover:bg-green-700 px-6 py-2 rounded text-white inline-block">
+        <div id="loader" class="hidden mt-6 text-center text-slate-400 animate-pulse">Analyzing video...</div>
+
+        <div id="result" class="hidden mt-8 p-4 bg-slate-700 rounded-xl">
+            <h2 id="videoTitle" class="font-semibold text-lg mb-4 truncate text-center"></h2>
+            <a id="downloadLink" href="#" target="_blank" class="block text-center bg-green-600 py-3 rounded-lg font-bold hover:bg-green-500 transition">
                 Download Now
             </a>
         </div>
     </div>
 
     <script>
-        async function fetchVideo() {
-            const urlInput = document.getElementById('videoUrl').value;
-            const btn = document.getElementById('btn');
-            const resultDiv = document.getElementById('result');
+        async function getLink() {
+            const url = document.getElementById('urlInput').value;
+            if(!url) return alert("Please paste a URL!");
 
-            if (!urlInput) return alert("Please paste a URL!");
-
-            btn.innerText = "Processing...";
-            btn.disabled = true;
+            const loader = document.getElementById('loader');
+            const result = document.getElementById('result');
+            
+            loader.classList.remove('hidden');
+            result.classList.add('hidden');
 
             try {
-                // IMPORTANT: Replace with your actual backend URL once deployed
-                const response = await fetch(`https://your-backend-api.com/api/info?url=${encodeURIComponent(urlInput)}`);
-                const data = await response.json();
+                const res = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+                const data = await res.json();
 
-                if (data.url) {
+                if(data.url) {
                     document.getElementById('videoTitle').innerText = data.title;
-                    document.getElementById('downloadBtn').href = data.url;
-                    resultDiv.classList.remove('hidden');
+                    document.getElementById('downloadLink').href = data.url;
+                    result.classList.remove('hidden');
                 } else {
-                    alert("Failed to get video info.");
+                    alert("Error: " + (data.error || "Could not get link."));
                 }
-            } catch (err) {
-                alert("Error connecting to the backend.");
+            } catch (e) {
+                alert("Server connection failed.");
             } finally {
-                btn.innerText = "Get Download Link";
-                btn.disabled = false;
+                loader.classList.add('hidden');
             }
         }
     </script>
