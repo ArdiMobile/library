@@ -1,5 +1,5 @@
 {
-  "name": "ardimobile-downloader",
+  "name": "ardimobile",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
