@@ -13,58 +13,92 @@
   <h1 class="text-3xl font-bold text-center text-blue-500 mb-6">ArdiMobile</h1>
 
   <input id="url" placeholder="Paste YouTube link..."
-    class="w-full p-3 rounded bg-slate-700 mb-4"/>
+    class="w-full p-3 rounded bg-slate-700 mb-4 text-white placeholder-gray-400"/>
 
   <button onclick="fetchVideo()"
-    class="w-full bg-blue-600 p-3 rounded font-bold">
+    class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded font-bold transition">
     Get Download Links
   </button>
 
-  <div id="loader" class="hidden text-center mt-4">Loading...</div>
+  <div id="loader" class="hidden text-center mt-4 text-gray-300">Loading...</div>
+  <div id="error" class="hidden text-center mt-4 text-red-400"></div>
 
   <div id="result" class="mt-6 hidden">
-    <img id="thumb" class="rounded mb-4"/>
-    <h2 id="title" class="font-bold mb-4"></h2>
-    <div id="links"></div>
+    <img id="thumb" class="rounded mb-4 w-full"/>
+    <h2 id="title" class="font-bold mb-2"></h2>
+    <p id="duration" class="text-sm text-gray-400 mb-4"></p>
+    <div id="links" class="space-y-2"></div>
   </div>
 </div>
 
 <script>
 async function fetchVideo() {
   const url = document.getElementById('url').value;
-  if (!url) return alert("Enter a URL");
+  if (!url) return alert("Please enter a YouTube URL");
 
-  document.getElementById('loader').classList.remove('hidden');
-  document.getElementById('result').classList.add('hidden');
+  const loader = document.getElementById('loader');
+  const result = document.getElementById('result');
+  const errorDiv = document.getElementById('error');
+
+  loader.classList.remove('hidden');
+  result.classList.add('hidden');
+  errorDiv.classList.add('hidden');
 
   try {
     const res = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
     const data = await res.json();
 
-    if (data.error) return alert(data.error);
+    if (data.error) {
+      errorDiv.innerText = data.error;
+      errorDiv.classList.remove('hidden');
+      loader.classList.add('hidden');
+      return;
+    }
 
     document.getElementById('thumb').src = data.thumbnail;
     document.getElementById('title').innerText = data.title;
+    document.getElementById('duration').innerText = 
+      data.duration ? `Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')}` : '';
 
     const linksDiv = document.getElementById('links');
     linksDiv.innerHTML = "";
 
     data.formats.forEach(f => {
-      const btn = document.createElement('a');
-      btn.href = f.url;
-      btn.innerText = "Download " + f.quality;
-      btn.className = "block bg-green-600 p-2 rounded mb-2 text-center";
-      btn.target = "_blank";
+      const btn = document.createElement('button');
+      btn.innerText = `Download ${f.quality} MP4`;
+      btn.className = "w-full bg-green-600 hover:bg-green-700 p-3 rounded font-bold transition";
+      
+      btn.onclick = async () => {
+        btn.innerText = "Preparing download...";
+        btn.disabled = true;
+        
+        try {
+          // Redirect to the download endpoint
+          window.location.href = `/api/download?url=${encodeURIComponent(data.webpage_url)}&format=${f.format_id}`;
+          
+          // Re-enable after short delay
+          setTimeout(() => {
+            btn.innerText = `Download ${f.quality} MP4`;
+            btn.disabled = false;
+          }, 2000);
+        } catch {
+          alert("Download failed. Please try again.");
+          btn.innerText = `Download ${f.quality} MP4`;
+          btn.disabled = false;
+        }
+      };
+      
       linksDiv.appendChild(btn);
     });
 
-    document.getElementById('result').classList.remove('hidden');
+    result.classList.remove('hidden');
 
   } catch {
-    alert("Server error");
+    errorDiv.innerText = "Server error. Please try again later.";
+    errorDiv.classList.remove('hidden');
   }
 
-  document.getElementById('loader').classList.add('hidden');
+  loader.classList.add('hidden');
 }
 </script>
 
