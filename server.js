@@ -6,12 +6,12 @@ const path = require('path');
 const app = express();
 app.use(cors());
 
-// This specifically fixes the "Cannot GET /" error
+// Serves the UI
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// API endpoint for video info
+// The downloader logic
 app.get('/api/info', async (req, res) => {
     const videoUrl = req.query.url;
     if (!videoUrl) return res.status(400).json({ error: "No URL provided" });
@@ -31,9 +31,9 @@ app.get('/api/info', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Failed to fetch video details." });
+        res.status(500).json({ error: "YouTube blocked the request or the link is invalid." });
     }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server is live on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
