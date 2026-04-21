@@ -11,7 +11,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// The downloader logic
+// The downloader logic with bypass flags
 app.get('/api/info', async (req, res) => {
     const videoUrl = req.query.url;
     if (!videoUrl) return res.status(400).json({ error: "No URL provided" });
@@ -21,7 +21,12 @@ app.get('/api/info', async (req, res) => {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true,
-            addHeader: ['referer:youtube.com', 'user-agent:googlebot']
+            // Mimics a real Chrome browser fingerprint
+            impersonate: 'chrome',
+            addHeader: [
+                'referer:https://www.youtube.com/',
+                'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+            ]
         });
 
         res.json({
@@ -30,8 +35,10 @@ app.get('/api/info', async (req, res) => {
             thumbnail: output.thumbnail
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "YouTube blocked the request or the link is invalid." });
+        console.error("Extraction Error:", error);
+        res.status(500).json({ 
+            error: "YouTube is blocking the request. Try again in a few minutes or use a different link." 
+        });
     }
 });
 
