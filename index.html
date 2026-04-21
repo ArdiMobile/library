@@ -9,56 +9,43 @@
 <body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md p-8 bg-slate-800 rounded-3xl shadow-2xl border border-slate-700">
         <h1 class="text-4xl font-black text-center mb-10 text-blue-500 tracking-tight">ArdiMobile</h1>
-        
         <div class="space-y-4">
             <input type="text" id="urlInput" placeholder="Paste YouTube link here..." 
                 class="w-full p-4 rounded-xl bg-slate-700 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg">
-            
             <button onclick="getLink()" id="mainBtn" 
                 class="w-full bg-blue-600 py-4 rounded-xl font-bold text-xl hover:bg-blue-500 transition-all active:scale-95">
                 Get Download Link
             </button>
         </div>
-
-        <div id="loader" class="hidden mt-8 text-center text-blue-400 font-medium animate-pulse">
-            Analyzing video...
-        </div>
-
-        <div id="result" class="hidden mt-8 p-6 bg-slate-900/50 rounded-2xl border border-slate-700">
-            <h2 id="videoTitle" class="font-bold text-lg mb-6 text-center text-slate-200"></h2>
+        <div id="loader" class="hidden mt-8 text-center text-blue-400 font-medium animate-pulse">Analyzing video...</div>
+        <div id="result" class="hidden mt-8 p-6 bg-slate-900/50 rounded-2xl border border-slate-700 text-center">
+            <h2 id="videoTitle" class="font-bold text-lg mb-6 text-slate-200"></h2>
             <a id="downloadLink" href="#" target="_blank" 
-                class="block text-center bg-green-600 py-4 rounded-xl font-bold text-lg hover:bg-green-500 transition-all">
+                class="block bg-green-600 py-4 rounded-xl font-bold text-lg hover:bg-green-500 transition-all">
                 Download Now
             </a>
         </div>
     </div>
-
     <script>
         async function getLink() {
             const url = document.getElementById('urlInput').value;
             if(!url) return alert("Please paste a link!");
-
-            const loader = document.getElementById('loader');
-            const result = document.getElementById('result');
-            
-            loader.classList.remove('hidden');
-            result.classList.add('hidden');
-
+            document.getElementById('loader').classList.remove('hidden');
+            document.getElementById('result').classList.add('hidden');
             try {
                 const res = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
                 const data = await res.json();
-
                 if(data.url) {
                     document.getElementById('videoTitle').innerText = data.title;
                     document.getElementById('downloadLink').href = data.url;
-                    result.classList.remove('hidden');
+                    document.getElementById('result').classList.remove('hidden');
                 } else {
                     alert(data.error || "Could not fetch video.");
                 }
             } catch (e) {
                 alert("Connection to server failed.");
             } finally {
-                loader.classList.add('hidden');
+                document.getElementById('loader').classList.add('hidden');
             }
         }
     </script>
